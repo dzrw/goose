@@ -24,10 +24,19 @@ type Manager interface {
 	Status() (status Status, err error)
 }
 
-func Start(provider eventdb.EventProvider) (wrk Manager) {
+func Start(ep eventdb.EventProvider) (wrk Manager, err error) {
+	if ep == nil {
+		ep = eventdb.NopEventProvider()
+	}
+
+	err = ep.Dial()
+	if err != nil {
+		return
+	}
+
 	wrk = &worker{
 		db:       watchdb.New(),
-		provider: provider,
+		provider: ep,
 		work:     make(chan T),
 		sigs:     make(SignalChannel),
 	}

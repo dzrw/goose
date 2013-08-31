@@ -35,7 +35,9 @@ func (wk *worker) Start() {
 // Convenience method to instruct the backend to gracefully shutdown.
 func (wk *worker) Stop() int {
 	log.Println("worker: stopping")
-	return wk.sigs.Quit()
+	exitCode := wk.sigs.Quit()
+	wk.provider.Close()
+	return exitCode
 }
 
 // Convenience method to issue a probe (query) to the backend.

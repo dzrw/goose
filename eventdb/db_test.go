@@ -4,11 +4,24 @@ import (
 	"testing"
 )
 
-func TestDialAndClose(t *testing.T) {
-	db, err := Dial("tcp", ":6379")
+func TestNopEventProvider(t *testing.T) {
+	ep := NopEventProvider()
+	err := ep.Dial()
 	if err != nil {
 		t.Error(err)
+		return
 	}
 
-	defer db.Close()
+	ep.Close()
+}
+
+func TestRedisEventProvider(t *testing.T) {
+	ep := RedisEventProvider("tcp", ":6379", 0)
+	err := ep.Dial()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	ep.Close()
 }

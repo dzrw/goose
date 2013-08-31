@@ -8,6 +8,7 @@ import (
 type eventdb struct {
 	net  string
 	addr string
+	db   int
 	conn redis.Conn
 }
 

@@ -18,11 +18,16 @@ func TestMatchHandler(t *testing.T) {
 		WATCH_BODY  = "hello, world"
 	)
 
-	mgr := worker.Start(nil)
+	mgr, err := worker.Start(nil)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
 	defer mgr.Stop()
 
 	w := fakeWatch("redis:watch:1234", "GET", "/foo", WATCH_BODY)
-	_, err := mgr.Add(w)
+	_, err = mgr.Add(w)
 	if err != nil {
 		t.Error(err)
 		return

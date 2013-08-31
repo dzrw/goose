@@ -14,7 +14,12 @@ type UnsafeAccessor interface {
 }
 
 func TestCreateWatch(t *testing.T) {
-	mgr := worker.Start(nil)
+	mgr, err := worker.Start(nil)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
 	defer mgr.Stop()
 
 	mux := NewWatchHandler(mgr)

@@ -1,6 +1,7 @@
 package main
 
 import (
+	goflags "github.com/jessevdk/go-flags"
 	"github.com/politician/goose/eventdb"
 	"github.com/politician/goose/web"
 	"github.com/politician/goose/worker"
@@ -10,25 +11,30 @@ import (
 	"syscall"
 )
 
+type Options struct {
+	RedisAddr string `short:"r" long:"redis" value-name:"HOST" description:"Redis address to emit events to" optional:"true"`
+	RedisDb   int    `long:"redis-db" value-name:"DB" default:"0" description:"Redis database to use" optional:"true"`
+
+	ep eventdb.EventProvider
+}
+
 func main() {
+	// Parse the command line.
+	opts := parseArgs()
+
 	log.Println("starting....")
 
-	forever()
+	forever(opts)
 
 	log.Println("goodbye...")
 }
 
-func forever() {
-	// Setup the event log.
-	evt, err := eventdb.Dial("tcp", ":6379")
-	if err != nil {
-		log.Fatalln("could not establish connection to the event database: ", err)
-	}
-
-	defer evt.Close()
-
+func forever(opts *Options) {
 	// Start a worker to coordiate access to the watchdb and redis event log.
-	mgr := worker.Start(evt)
+	mgr, err := worker.Start(opts.ep)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	defer mgr.Stop()
 
@@ -73,4 +79,25 @@ func await() {
 	sig := <-ch
 
 	log.Println("Got signal: ", sig.String())
+}
+
+// Parses the command-line arguments, and validates them.
+func parseArgs() *Options {
+	opts := &Options{}
+
+	_, err := goflags.Parse(opts)
+	if err != nil {
+		os.Exit(1)
+	}
+
+	if opts.RedisDb < 0 || opts.RedisDb > 15 {
+		log.Fatal("redis db out of range")
+	}
+
+	opts.ep = eventdb.NopEventProvider()
+	if opts.RedisAddr != "" {
+		opts.ep = eventdb.RedisEventProvider("tcp", opts.RedisAddr, opts.RedisDb)
+	}
+
+	return opts
 }
