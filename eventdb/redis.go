@@ -1,33 +1,43 @@
 package eventdb
 
 import (
+	"errors"
 	"github.com/garyburd/redigo/redis"
 	"log"
 )
 
-type RedisDialer struct {
-	Network string
-	Address string
-	Db      int
+var ErrCouldNotSelectDb = errors.New("could not select db")
+
+type redisdb struct {
+	net  string
+	addr string
+	db   int
+	conn redis.Conn
 }
 
-func NewRedisDialer(network, addr string, db int) *RedisDialer {
-	if network == "" {
-		network = "tcp"
-	}
-
-	return &RedisDialer{network, addr, db}
-}
-
-func (d *RedisDialer) Dial() (conn redis.Conn, err error) {
-	conn, err = redis.Dial(d.Network, d.Address)
+func (db *redisdb) Dial() (err error) {
+	conn, err := redis.Dial(db.net, db.addr)
 	if err != nil {
 		return
 	}
 
-	log.Printf("connected to redis on %s:%s\n", d.Network, d.Address)
+	db.conn = conn
 
-	// TODO Select the db.
+	str, err := redis.String(db.conn.Do("SELECT", db.db))
+	if err != nil {
+		db.conn.Close()
+		return
+	}
 
+	if str != "OK" {
+		db.conn.Close()
+		return ErrCouldNotSelectDb
+	}
+
+	log.Printf("connected to redis on %s:%s\n", db.net, db.addr)
 	return
+}
+
+func (db *redisdb) Close() {
+	db.conn.Close()
 }

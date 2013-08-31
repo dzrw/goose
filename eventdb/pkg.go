@@ -10,5 +10,5 @@ func NopEventProvider() EventProvider {
 }
 
 func RedisEventProvider(net, addr string, db int) EventProvider {
-	return &eventdb{net: net, addr: addr}
+	return &redisdb{net, addr, db, nil}
 }
