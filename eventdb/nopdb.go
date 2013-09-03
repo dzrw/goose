@@ -14,6 +14,10 @@ func (*nopdb) Close() {
 	return
 }
 
-func (*nopdb) Submit(tag string, req *http.Request) {
+func (*nopdb) Trace(tag string, req *http.Request, res *http.Response) {
+	return
+}
+
+func (*nopdb) TraceUnexpected(req *http.Request, res *http.Response) {
 	return
 }

@@ -38,6 +38,10 @@ func (db *redisdb) Close() {
 	db.conn.Close()
 }
 
-func (db *redisdb) Submit(tag string, req *http.Request) {
+func (db *redisdb) Trace(tag string, req *http.Request, res *http.Response) {
+	return
+}
+
+func (db *redisdb) TraceUnexpected(req *http.Request, res *http.Response) {
 	return
 }

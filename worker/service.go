@@ -6,6 +6,7 @@ import (
 	"github.com/politician/goose/eventdb"
 	"github.com/politician/goose/watchdb"
 	"log"
+	"net/http"
 )
 
 // WatchKeeper serializes access to an underlying watch
@@ -132,7 +133,7 @@ func (wrk *worker) match(t matchTask) {
 
 	tag := ""
 	if ok {
-		tag = m.tag
+		wrk.provider.Trace(m.Tag())
 	}
 
 	// Log the event
@@ -161,4 +162,76 @@ func (wrk *worker) remove(t removeTask) {
 func (wrk *worker) status(t statusTask) {
 	size := wrk.db.Size()
 	t.resolve(size)
+}
+
+// ----------------------------------------------
+// Watch Resolver
+// ----------------------------------------------
+
+func (wrk *worker) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	const (
+		GOOSE_ERROR      = 510
+		GOOSE_CONF_ERROR = 509
+	)
+
+	// Build a match expression from the request
+	expr := watchdb.NewMatchExpr(req.URL.Path, req.Method)
+
+	// Lookup the associated watch, if any
+	m, err = wrk.Match(expr)
+	if err != nil {
+		http.Error(w, err.Error(), GOOSE_ERROR)
+		return
+	}
+
+	if m.IsMatch() {
+		wrk.provider.Trace()
+	} else {
+		wrk.provider.TraceUnexpected()
+
+		http.Error(w, "This request did not match any watches.", GOOSE_CONF_ERROR)
+	}
+
+}
+
+func (d *mallory) lookup(req *http.Request) (m watchdb.MatchData, err error) {
+	expr := watchdb.NewMatchExpr(req.URL.Path, req.Method)
+	m, err = d.m.Match(expr)
+
+	str := ""
+	if !m.IsMatch() {
+		str = "not "
+	}
+
+	log.Printf("*** %s %s (%smatched)", req.Method, req.URL.Path, str)
+	return
+}
+
+// Writes a response to the client on a match.
+func (d *mallory) render(w http.ResponseWriter, m watchdb.MatchData) {
+	defer func() {
+		e := recover()
+		if e == nil {
+			return
+		}
+
+		var str string
+
+		err, ok := e.(error)
+		if ok {
+			str = err.Error()
+		} else {
+			str = fmt.Sprintf("%+v", e)
+		}
+
+		log.Printf("panic: (%d) %s", CRAZIER_ERROR, str)
+		http.Error(w, str, CRAZIER_ERROR)
+	}()
+
+	if !m.IsMatch() {
+		http.Error(w, "This request did not match any watches.", CRAZY_ERROR)
+		return
+	}
+
+	m.Echo().ServeHTTP(w, nil)
 }
