@@ -1,8 +1,13 @@
 package eventdb
 
+import (
+	"net/http"
+)
+
 type EventProvider interface {
 	Dial() error
 	Close()
+	Submit(tag string, req *http.Request)
 }
 
 func NopEventProvider() EventProvider {

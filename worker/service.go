@@ -128,15 +128,17 @@ func (wk *worker) enqueue(t T) {
 }
 
 func (wrk *worker) match(t matchTask) {
-	res, ok := wrk.db.Match(t.expr)
+	m, ok := wrk.db.Match(t.expr)
 
+	tag := ""
 	if ok {
-		// TODO: Notify redis of a hit.
-	} else {
-		// TODO: Notify redis of a miss.
+		tag = m.tag
 	}
 
-	t.resolve(res)
+	// Log the event
+	wrk.provider.Submit(tag, nil)
+
+	t.resolve(m)
 }
 
 func (wrk *worker) add(t createTask) {

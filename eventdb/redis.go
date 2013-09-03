@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/garyburd/redigo/redis"
 	"log"
+	"net/http"
 )
 
 var ErrCouldNotSelectDb = errors.New("could not select db")
@@ -23,15 +24,10 @@ func (db *redisdb) Dial() (err error) {
 
 	db.conn = conn
 
-	str, err := redis.String(db.conn.Do("SELECT", db.db))
+	_, err = redis.String(db.conn.Do("SELECT", db.db))
 	if err != nil {
 		db.conn.Close()
 		return
-	}
-
-	if str != "OK" {
-		db.conn.Close()
-		return ErrCouldNotSelectDb
 	}
 
 	log.Printf("connected to redis on %s:%s\n", db.net, db.addr)
@@ -40,4 +36,8 @@ func (db *redisdb) Dial() (err error) {
 
 func (db *redisdb) Close() {
 	db.conn.Close()
+}
+
+func (db *redisdb) Submit(tag string, req *http.Request) {
+	return
 }
