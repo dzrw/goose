@@ -41,7 +41,8 @@ func createFunc(watcher worker.WatchList) http.HandlerFunc {
 			return
 		}
 
-		// TODO: Provide a real implementation.
-		http.Error(w, fmt.Sprintf(`{"id": %d}`, id), http.StatusCreated)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		fmt.Fprintf(w, `{"id": %d}`, id)
 	}
 }
