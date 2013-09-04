@@ -36,6 +36,9 @@ func (*fakeEventProvider) Dial() error {
 
 func (*fakeEventProvider) Close() {}
 
+func (*fakeEventProvider) Trace(tag string, req *http.Request) {}
+func (*fakeEventProvider) TraceUnexpected(req *http.Request)   {}
+
 func assertSizeEquals(t *testing.T, mgr Manager, expected int) {
 	status, err := mgr.Status()
 	if err != nil {
