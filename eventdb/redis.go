@@ -38,10 +38,12 @@ func (db *redisdb) Close() {
 	db.conn.Close()
 }
 
-func (db *redisdb) Trace(tag string, req *http.Request, res *http.Response) {
+func (db *redisdb) Trace(tag string, req *http.Request) {
+	log.Printf("*** %s %s (matched)", req.Method, req.URL.Path)
 	return
 }
 
-func (db *redisdb) TraceUnexpected(req *http.Request, res *http.Response) {
+func (db *redisdb) TraceUnexpected(req *http.Request) {
+	log.Printf("*** %s %s (not matched)", req.Method, req.URL.Path)
 	return
 }

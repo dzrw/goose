@@ -3,6 +3,7 @@ package worker
 import (
 	"errors"
 	// "github.com/davecgh/go-spew/spew"
+	"fmt"
 	"github.com/politician/goose/eventdb"
 	"github.com/politician/goose/watchdb"
 	"log"
@@ -129,16 +130,7 @@ func (wk *worker) enqueue(t T) {
 }
 
 func (wrk *worker) match(t matchTask) {
-	m, ok := wrk.db.Match(t.expr)
-
-	tag := ""
-	if ok {
-		wrk.provider.Trace(m.Tag())
-	}
-
-	// Log the event
-	wrk.provider.Submit(tag, nil)
-
+	m, _ := wrk.db.Match(t.expr)
 	t.resolve(m)
 }
 
@@ -174,41 +166,6 @@ func (wrk *worker) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		GOOSE_CONF_ERROR = 509
 	)
 
-	// Build a match expression from the request
-	expr := watchdb.NewMatchExpr(req.URL.Path, req.Method)
-
-	// Lookup the associated watch, if any
-	m, err = wrk.Match(expr)
-	if err != nil {
-		http.Error(w, err.Error(), GOOSE_ERROR)
-		return
-	}
-
-	if m.IsMatch() {
-		wrk.provider.Trace()
-	} else {
-		wrk.provider.TraceUnexpected()
-
-		http.Error(w, "This request did not match any watches.", GOOSE_CONF_ERROR)
-	}
-
-}
-
-func (d *mallory) lookup(req *http.Request) (m watchdb.MatchData, err error) {
-	expr := watchdb.NewMatchExpr(req.URL.Path, req.Method)
-	m, err = d.m.Match(expr)
-
-	str := ""
-	if !m.IsMatch() {
-		str = "not "
-	}
-
-	log.Printf("*** %s %s (%smatched)", req.Method, req.URL.Path, str)
-	return
-}
-
-// Writes a response to the client on a match.
-func (d *mallory) render(w http.ResponseWriter, m watchdb.MatchData) {
 	defer func() {
 		e := recover()
 		if e == nil {
@@ -217,21 +174,37 @@ func (d *mallory) render(w http.ResponseWriter, m watchdb.MatchData) {
 
 		var str string
 
-		err, ok := e.(error)
-		if ok {
-			str = err.Error()
-		} else {
+		switch u := e.(type) {
+		case error:
+			str = u.Error()
+		default:
 			str = fmt.Sprintf("%+v", e)
 		}
 
-		log.Printf("panic: (%d) %s", CRAZIER_ERROR, str)
-		http.Error(w, str, CRAZIER_ERROR)
+		log.Printf("panic: (%d) %s", GOOSE_ERROR, str)
+		http.Error(w, str, GOOSE_ERROR)
 	}()
 
-	if !m.IsMatch() {
-		http.Error(w, "This request did not match any watches.", CRAZY_ERROR)
+	// Build a match expression from the request
+	expr := watchdb.NewMatchExpr(req.URL.Path, req.Method)
+
+	// Lookup the associated watch, if any
+	m, err := wrk.Match(expr)
+	if err != nil {
+		http.Error(w, err.Error(), GOOSE_ERROR)
 		return
 	}
 
-	m.Echo().ServeHTTP(w, nil)
+	// TODO: m.MatchType == watchdb.PASSTHRU
+
+	// Log misses
+	if !m.IsMatch() {
+		wrk.provider.TraceUnexpected(req)
+		http.Error(w, "This request did not match any watches.", GOOSE_CONF_ERROR)
+		return
+	}
+
+	// Track hits, and serve echoes.
+	wrk.provider.Trace(m.Tag(), req)
+	m.Echo().ServeHTTP(w, req)
 }

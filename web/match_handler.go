@@ -1,10 +1,7 @@
 package web
 
 import (
-	"fmt"
-	"github.com/politician/goose/watchdb"
 	"github.com/politician/goose/worker"
-	"log"
 	"net/http"
 )
 

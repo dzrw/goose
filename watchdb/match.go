@@ -2,7 +2,6 @@ package watchdb
 
 import (
 	"errors"
-	"net/http"
 )
 
 var ErrNoMatch = errors.New("IsMatch == false")

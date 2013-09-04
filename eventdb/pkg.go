@@ -7,7 +7,9 @@ import (
 type EventProvider interface {
 	Dial() error
 	Close()
-	Submit(tag string, req *http.Request)
+
+	Trace(tag string, req *http.Request)
+	TraceUnexpected(req *http.Request)
 }
 
 func NopEventProvider() EventProvider {
