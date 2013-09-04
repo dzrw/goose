@@ -1,6 +1,8 @@
 package watchdb
 
-import "errors"
+import (
+	"errors"
+)
 
 var ErrNoMatch = errors.New("IsMatch == false")
 

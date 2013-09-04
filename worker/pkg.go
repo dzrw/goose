@@ -3,9 +3,12 @@ package worker
 import (
 	"github.com/politician/goose/eventdb"
 	"github.com/politician/goose/watchdb"
+	"net/http"
 )
 
 type Matcher interface {
+	http.Handler
+
 	Match(expr *watchdb.MatchExpr) (m watchdb.MatchData, err error)
 }
 

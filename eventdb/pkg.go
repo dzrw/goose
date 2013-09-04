@@ -1,8 +1,15 @@
 package eventdb
 
+import (
+	"net/http"
+)
+
 type EventProvider interface {
 	Dial() error
 	Close()
+
+	Trace(tag string, req *http.Request)
+	TraceUnexpected(req *http.Request)
 }
 
 func NopEventProvider() EventProvider {

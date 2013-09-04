@@ -3,9 +3,11 @@ package worker
 import (
 	"errors"
 	// "github.com/davecgh/go-spew/spew"
+	"fmt"
 	"github.com/politician/goose/eventdb"
 	"github.com/politician/goose/watchdb"
 	"log"
+	"net/http"
 )
 
 // WatchKeeper serializes access to an underlying watch
@@ -128,15 +130,8 @@ func (wk *worker) enqueue(t T) {
 }
 
 func (wrk *worker) match(t matchTask) {
-	res, ok := wrk.db.Match(t.expr)
-
-	if ok {
-		// TODO: Notify redis of a hit.
-	} else {
-		// TODO: Notify redis of a miss.
-	}
-
-	t.resolve(res)
+	m, _ := wrk.db.Match(t.expr)
+	t.resolve(m)
 }
 
 func (wrk *worker) add(t createTask) {
@@ -159,4 +154,57 @@ func (wrk *worker) remove(t removeTask) {
 func (wrk *worker) status(t statusTask) {
 	size := wrk.db.Size()
 	t.resolve(size)
+}
+
+// ----------------------------------------------
+// Watch Resolver
+// ----------------------------------------------
+
+func (wrk *worker) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	const (
+		GOOSE_ERROR      = 510
+		GOOSE_CONF_ERROR = 509
+	)
+
+	defer func() {
+		e := recover()
+		if e == nil {
+			return
+		}
+
+		var str string
+
+		switch u := e.(type) {
+		case error:
+			str = u.Error()
+		default:
+			str = fmt.Sprintf("%+v", e)
+		}
+
+		log.Printf("panic: (%d) %s", GOOSE_ERROR, str)
+		http.Error(w, str, GOOSE_ERROR)
+	}()
+
+	// Build a match expression from the request
+	expr := watchdb.NewMatchExpr(req.URL.Path, req.Method)
+
+	// Lookup the associated watch, if any
+	m, err := wrk.Match(expr)
+	if err != nil {
+		http.Error(w, err.Error(), GOOSE_ERROR)
+		return
+	}
+
+	// TODO: m.MatchType == watchdb.PASSTHRU
+
+	// Log misses
+	if !m.IsMatch() {
+		wrk.provider.TraceUnexpected(req)
+		http.Error(w, "This request did not match any watches.", GOOSE_CONF_ERROR)
+		return
+	}
+
+	// Track hits, and serve echoes.
+	wrk.provider.Trace(m.Tag(), req)
+	m.Echo().ServeHTTP(w, req)
 }
