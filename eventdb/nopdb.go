@@ -2,7 +2,6 @@ package eventdb
 
 import (
 	"log"
-	"net/http"
 )
 
 type nopdb struct{}
@@ -15,12 +14,7 @@ func (*nopdb) Close() {
 	return
 }
 
-func (*nopdb) Trace(tag string, req *http.Request) {
-	log.Printf("*** %s %s (matched)", req.Method, req.URL.Path)
-	return
-}
-
-func (*nopdb) TraceUnexpected(req *http.Request) {
-	log.Printf("*** %s %s (not matched)", req.Method, req.URL.Path)
-	return
+func (*nopdb) Trace(m *Message) error {
+	log.Print(m.String())
+	return nil
 }

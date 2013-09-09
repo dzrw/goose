@@ -37,12 +37,13 @@ func ParseJsonWatch(req *http.Request) (w *watchdb.Watch, err error) {
 		return
 	}
 
+	dsn := jw.DataSourceName
 	path := jw.MatchExpr.Path
 	method := jw.MatchExpr.Method
 	tag := jw.Tag
 	echo := ParseJsonEcho(jw.Echo)
 
-	w = watchdb.NewWatch(path, method, tag, echo)
+	w = watchdb.NewWatch(dsn, path, method, tag, echo)
 	return
 }
 

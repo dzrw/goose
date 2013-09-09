@@ -2,6 +2,7 @@ package web
 
 import (
 	"encoding/json"
+	_ "github.com/davecgh/go-spew/spew"
 	"github.com/politician/goose/watchdb"
 	"github.com/politician/goose/worker"
 	"net/http"
@@ -14,15 +15,15 @@ type UnsafeAccessor interface {
 }
 
 func TestCreateWatch(t *testing.T) {
-	mgr, err := worker.Start(nil)
+	ws, err := worker.Start()
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	defer mgr.Stop()
+	defer ws.Stop()
 
-	mux := NewWatchHandler(mgr)
+	mux := NewWatchHandler(ws)
 
 	s, err := StartHttpServer(ListenAddr, mux)
 	if err != nil {
@@ -32,7 +33,7 @@ func TestCreateWatch(t *testing.T) {
 
 	defer s.Stop()
 
-	id, err := postWatch("http://127.0.0.1:9001/watches")
+	id, err := postWatch(t, "http://127.0.0.1:9001/watches")
 	if err != nil {
 		t.Error(err)
 		return
@@ -45,14 +46,14 @@ func TestCreateWatch(t *testing.T) {
 		return
 	}
 
-	db := mgr.(UnsafeAccessor).UnsafeGetWatchProvider()
+	db := ws.(UnsafeAccessor).UnsafeGetWatchProvider()
 	if !db.Contains(WATCH_ID) {
 		t.Errorf("expected the watchdb to contain a watch with id=%d", WATCH_ID)
 		return
 	}
 }
 
-func postWatch(addr string) (id int, err error) {
+func postWatch(t *testing.T, addr string) (id int, err error) {
 	data := &JsonWatch{
 		Tag:            "opaque-id-1234",
 		DataSourceName: "twitter",
@@ -69,6 +70,7 @@ func postWatch(addr string) (id int, err error) {
 
 	buf, err := json.Marshal(data)
 	if err != nil {
+		t.Error(err)
 		return
 	}
 
@@ -76,17 +78,23 @@ func postWatch(addr string) (id int, err error) {
 
 	resp, err := http.Post(addr, "application/json", postBody)
 	if err != nil {
+		t.Error(err)
 		return
 	}
 
 	decoder := json.NewDecoder(resp.Body)
-	var t struct{ Id int }
-	err = decoder.Decode(&t)
+	var tmp struct {
+		Id  int
+		Tag string
+	}
+	err = decoder.Decode(&tmp)
 	if err != nil {
+		t.Logf("%+v", decoder)
+		t.Error(err)
 		return
 	}
 
 	resp.Body.Close()
 
-	return t.Id, nil
+	return tmp.Id, nil
 }
