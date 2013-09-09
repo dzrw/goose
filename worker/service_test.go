@@ -7,94 +7,94 @@ import (
 )
 
 func TestStartAndStopServiceTwice(t *testing.T) {
-	mgr, err := Start(&fakeEventProvider{})
+	ws, err := Start()
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	if exitCode := mgr.Stop(); exitCode != 1 {
+	if exitCode := ws.Stop(); exitCode != 1 {
 		t.Errorf("expected: %d, got: %d", 1, exitCode)
 		return
 	}
 
-	mgr.Start()
-	mgr.Stop()
+	ws.Start()
+	ws.Stop()
 }
 
 func TestStatusWithService(t *testing.T) {
-	mgr, err := Start(&fakeEventProvider{})
+	ws, err := Start()
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	defer mgr.Stop()
+	defer ws.Stop()
 
-	assertSizeEquals(t, mgr, 0)
+	assertSizeEquals(t, ws, 0)
 }
 
 func TestAddWithService(t *testing.T) {
-	mgr, err := Start(&fakeEventProvider{})
+	ws, err := Start()
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	defer mgr.Stop()
+	defer ws.Stop()
 
 	w := fakeWatch()
 
-	_, err = mgr.Add(w)
+	_, _, err = ws.Add(w)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	assertSizeEquals(t, mgr, 1)
+	assertSizeEquals(t, ws, 1)
 }
 
 func TestClearWithService(t *testing.T) {
-	mgr, err := Start(&fakeEventProvider{})
+	ws, err := Start()
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	defer mgr.Stop()
+	defer ws.Stop()
 
 	w := fakeWatch()
 
-	_, err = mgr.Add(w)
+	_, _, err = ws.Add(w)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	assertSizeEquals(t, mgr, 1)
+	assertSizeEquals(t, ws, 1)
 
-	if err := mgr.Clear(); err != nil {
+	if err := ws.Clear(); err != nil {
 		t.Error(err)
 		return
 	}
 
-	assertSizeEquals(t, mgr, 0)
+	assertSizeEquals(t, ws, 0)
 }
 
 func TestMatchWithService(t *testing.T) {
-	mgr, err := Start(&fakeEventProvider{})
+	ws, err := Start()
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	defer mgr.Stop()
+	defer ws.Stop()
 
 	w := fakeWatch()
-	mgr.Add(w)
+	ws.Add(w)
 
-	expr := watchdb.NewMatchExpr(w.Path, w.Method)
-	m, err := mgr.Match(expr)
+	expr := watchdb.NewMatchExpr("dummy-service", w.Path, w.Method)
+	m, err := ws.Match(expr)
 	if err != nil {
 		t.Error(err)
 		return

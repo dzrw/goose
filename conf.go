@@ -7,13 +7,14 @@ import (
 )
 
 type ServerConf struct {
-	name    string
-	addr    string
-	handler http.Handler
+	name      string
+	addr      string
+	handler   http.Handler
+	verbosity int
 }
 
-func NewServerConf(addr, name string, handler http.Handler) *ServerConf {
-	return &ServerConf{name, addr, handler}
+func NewServerConf(addr, name string, verbosity int, handler http.Handler) *ServerConf {
+	return &ServerConf{name, addr, handler, verbosity}
 }
 
 func (c *ServerConf) IsWatchApi() bool {
@@ -21,8 +22,11 @@ func (c *ServerConf) IsWatchApi() bool {
 }
 
 func (c *ServerConf) Start() (srv *web.HttpServer, err error) {
-	srv, err = web.StartHttpServer(c.addr, c.handler)
-	if err != nil {
+	srv = web.NewHttpServer(c.addr, c.handler)
+	srv.ServerName = c.name
+	srv.Verbosity = c.verbosity
+
+	if err = srv.Start(); err != nil {
 		return
 	}
 

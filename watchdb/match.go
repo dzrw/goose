@@ -4,8 +4,6 @@ import (
 	"errors"
 )
 
-var ErrNoMatch = errors.New("IsMatch == false")
-
 var EmptyMatchData = &match{0, "unmatched", nil}
 
 type match struct {
@@ -38,6 +36,6 @@ func (m *match) IsMatch() bool {
 
 func (m *match) assertIsMatch() {
 	if !m.IsMatch() {
-		panic(ErrNoMatch)
+		panic(errors.New("assert failed: IsMatch == false"))
 	}
 }

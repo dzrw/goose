@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/davecgh/go-spew/spew"
+	"github.com/politician/goose/eventdb"
 	"github.com/politician/goose/watchdb"
 	"github.com/politician/goose/worker"
 	"io/ioutil"
@@ -16,30 +17,37 @@ func TestMatchHandler(t *testing.T) {
 		LISTEN_ADDR = ":9002"
 		WATCHED_URL = "http://127.0.0.1:9002/foo"
 		WATCH_BODY  = "hello, world"
+		DSN         = "dummy-service"
 	)
 
-	mgr, err := worker.Start(nil)
+	ws, err := worker.Start()
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	defer mgr.Stop()
+	defer ws.Stop()
 
-	w := fakeWatch("redis:watch:1234", "GET", "/foo", WATCH_BODY)
-	_, err = mgr.Add(w)
+	echo := &fakeResponse{body: WATCH_BODY}
+	w := watchdb.NewWatch(DSN,
+		"/foo", "GET", "redis:watch:1234", echo)
+
+	_, _, err = ws.Add(w)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	m, _ := mgr.Match(watchdb.NewMatchExpr("/foo", "GET"))
+	mx := watchdb.NewMatchExpr(DSN, "/foo", "GET")
+	m, _ := ws.Match(mx)
 	if !m.IsMatch() {
 		t.Errorf("watchdb doesn't recognize the watch")
 		return
 	}
 
-	mux := NewMatchHandler("test", mgr)
+	ep := eventdb.NopEventProvider()
+
+	mux := NewMatchHandler(DSN, ws, ep)
 
 	s, err := StartHttpServer(LISTEN_ADDR, mux)
 	if err != nil {
@@ -98,9 +106,4 @@ func (f *fakeResponse) Body() []byte {
 
 func (f *fakeResponse) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprint(w, f.body)
-}
-
-func fakeWatch(tag, method, path, body string) *watchdb.Watch {
-	echo := &fakeResponse{body: body}
-	return watchdb.NewWatch(path, method, tag, echo)
 }

@@ -25,22 +25,11 @@ func (*fakeResponse) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func fakeWatch() *watchdb.Watch {
-	return watchdb.NewWatch("GET", "/foo", "redis:watch:1234", new(fakeResponse))
+	return watchdb.NewWatch("dummy-service", "GET", "/foo", "redis:watch:1234", new(fakeResponse))
 }
 
-type fakeEventProvider struct{}
-
-func (*fakeEventProvider) Dial() error {
-	return nil
-}
-
-func (*fakeEventProvider) Close() {}
-
-func (*fakeEventProvider) Trace(tag string, req *http.Request) {}
-func (*fakeEventProvider) TraceUnexpected(req *http.Request)   {}
-
-func assertSizeEquals(t *testing.T, mgr Manager, expected int) {
-	status, err := mgr.Status()
+func assertSizeEquals(t *testing.T, ws WatchService, expected int) {
+	status, err := ws.Status()
 	if err != nil {
 		t.Error(err)
 	}

@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-func NewWatchHandler(watcher worker.WatchList) http.Handler {
+func NewWatchHandler(ws worker.WatchService) http.Handler {
 	const (
 		COLLECTION_URL = "/watches"
 		WATCH_URL      = "/watches/id:([a-f0-9]+)"
@@ -17,32 +17,55 @@ func NewWatchHandler(watcher worker.WatchList) http.Handler {
 	mux := routes.New()
 
 	// mux.Get(COLLECTION_URL, watches)
-	mux.Post(COLLECTION_URL, createFunc(watcher))
-	// mux.Del(COLLECTION_URL, deleteAll)
+	mux.Post(COLLECTION_URL, closeConnectionAdvice(createFunc(ws)))
+	mux.Del(COLLECTION_URL, closeConnectionAdvice(deleteAllFunc(ws)))
 	// mux.Get(WATCH_URL, watch)
-	// mux.Del(WATCH_URL, deleteOne)
+	// mux.Del(WATCH_URL, closeConnectionAdvice(deleteOne(ws)))
 
 	return mux
 }
 
-func createFunc(watcher worker.WatchList) http.HandlerFunc {
+func closeConnectionAdvice(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Connection", "close")
+		next(w, req)
+	}
+}
 
+func createFunc(ws worker.WatchService) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
 		watch, err := ParseJsonWatch(req)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		id, err := watcher.Add(watch)
+		id, tag, err := ws.Add(watch)
 		if err != nil {
-			http.Error(w, err.Error(), CRAZY_ERROR)
+			http.Error(w, err.Error(), GOOSE_ERROR)
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		fmt.Fprintf(w, `{"id": %d}`, id)
+		fmt.Fprintf(w, `{"id": %d, "tag": "%s"}`, id, tag)
+	}
+}
+
+func deleteAllFunc(ws worker.WatchService) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		err := ws.Clear()
+		if err != nil {
+			http.Error(w, err.Error(), GOOSE_ERROR)
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func deleteOneFunc(ws worker.WatchService) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		http.Error(w, "Not implemented", http.StatusMethodNotAllowed)
 	}
 }

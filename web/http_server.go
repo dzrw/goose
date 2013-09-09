@@ -10,6 +10,9 @@ import (
 type HttpServer struct {
 	http.Server
 
+	ServerName string
+	Verbosity  int
+
 	wl    WaitListener
 	state HttpServerState
 }
@@ -25,12 +28,6 @@ const (
 
 type httpServerState int
 
-func StartHttpServer(addr string, handler http.Handler) (srv *HttpServer, err error) {
-	srv = NewHttpServer(addr, handler)
-	err = srv.Start()
-	return
-}
-
 func NewHttpServer(addr string, handler http.Handler) *HttpServer {
 	if addr == "" {
 		addr = ":http"
@@ -41,6 +38,7 @@ func NewHttpServer(addr string, handler http.Handler) *HttpServer {
 			Addr:    addr,
 			Handler: handler,
 		},
+
 		state: NotReady,
 	}
 
@@ -61,12 +59,16 @@ func (srv *HttpServer) Stop() (err error) {
 		return
 	}
 
-	log.Println("refusing connections to " + srv.Addr)
-	log.Println("waiting for existing requests to drain...")
+	if srv.Verbosity > 0 {
+		log.Println("goose/web: refusing connections to " + srv.Addr)
+		log.Println("goose/web: waiting for existing requests to drain...")
+	}
 
 	srv.wl.Wait()
 
-	log.Printf("drained")
+	if srv.Verbosity > 0 {
+		log.Printf("goose/web: drained")
+	}
 
 	return
 }
@@ -90,11 +92,13 @@ func (srv *HttpServer) Start() (err error) {
 		if err != nil {
 			if srv.IsStopping() {
 				srv.state = Stopped
-				log.Println("socket server exited")
+				if srv.Verbosity > 0 {
+					log.Printf("goose/web: closed socket server for %s", srv.Server.Addr)
+				}
 				return
 			}
 
-			log.Fatalf("Serve: %T %v (%v)", err, err, srv.state)
+			log.Fatalf("goose/web: Serve: %T %v (%v)", err, err, srv.state)
 		}
 	}()
 
@@ -140,7 +144,7 @@ func (l *waitListener) Accept() (net.Conn, error) {
 		return c, err
 	}
 
-	log.Printf("connection accepted: %s", c.RemoteAddr().String())
+	//log.Printf("connection accepted: %s", c.RemoteAddr().String())
 
 	l.wg.Add(1)
 	return &waitConn{c, l.wg}, nil
@@ -150,6 +154,6 @@ func (l *waitListener) Accept() (net.Conn, error) {
 func (c *waitConn) Close() error {
 	err := c.Conn.Close()
 	c.wg.Done()
-	log.Printf("connection closed: %s", c.RemoteAddr().String())
+	//log.Printf("connection closed: %s", c.RemoteAddr().String())
 	return err
 }

@@ -21,3 +21,4 @@ _testmain.go
 
 *.exe
 goose
+.DS_Store

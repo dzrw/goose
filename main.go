@@ -14,32 +14,39 @@ import (
 type Options struct {
 	RedisAddr string `short:"r" long:"redis" value-name:"HOST" description:"Redis address to emit events to" optional:"true"`
 	RedisDb   int    `long:"redis-db" value-name:"DB" default:"0" description:"Redis database to use" optional:"true"`
+	Verbose   bool   `short:"v" long:"verbose" default:"false" optional:"true"`
 
-	ep eventdb.EventProvider
+	verbosity int
 }
 
 func main() {
 	// Parse the command line.
 	opts := parseArgs()
 
-	log.Println("starting....")
+	run(opts)
 
-	forever(opts)
-
-	log.Println("goodbye...")
+	println("\ngoodbye")
 }
 
-func forever(opts *Options) {
-	// Start a worker to coordiate access to the watchdb and redis event log.
-	mgr, err := worker.Start(opts.ep)
+func run(opts *Options) {
+	// Dial the selected event backend.
+	ep, err := dialEventProvider(opts)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	defer mgr.Stop()
+	defer ep.Close()
+
+	// Start a WatchService which coordiates access to watchdb.
+	ws, err := worker.Start()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer ws.Stop()
 
 	// Start the HTTP servers.
-	for _, conf := range servers(mgr) {
+	for _, conf := range servers(ws, ep, opts) {
 		srv, err := conf.Start()
 		if err != nil {
 			log.Fatal(err)
@@ -49,36 +56,35 @@ func forever(opts *Options) {
 	}
 
 	// Wait for OS signals.
-	await()
+	await(opts)
 }
 
 // Gets the list of servers to start
-func servers(mgr worker.Manager) []*ServerConf {
-	watcher := mgr.(worker.WatchList)
-	matcher := mgr.(worker.Matcher)
-
+func servers(ws worker.WatchService, ep eventdb.EventProvider, opts *Options) []*ServerConf {
 	return []*ServerConf{
-		NewServerConf(":8080", "watchapi",
-			web.NewWatchHandler(watcher)),
-		NewServerConf(":8081", "data-access-service",
-			web.NewMatchHandler("data-access-service", matcher)),
+		NewServerConf(":8080", "watchapi", opts.verbosity,
+			web.NewWatchHandler(ws)),
+		NewServerConf(":8081", "data-access-service", opts.verbosity,
+			web.NewMatchHandler("data-access-service", ws, ep)),
 	}
 }
 
 // Blocks until SIGINT or SIGTERM.
-func await() {
+func await(opts *Options) {
 	// Set up channel on which to send signal notifications.
 	// We must use a buffered channel or risk missing the signal
 	// if we're not ready to receive when the signal is sent.
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 
-	log.Println("CTRL-C to exit...")
+	println("CTRL-C to exit...")
 
 	// Block until we receive a signal.
 	sig := <-ch
 
-	log.Println("Got signal: ", sig.String())
+	if opts.verbosity > 0 {
+		log.Println("Got signal: ", sig.String())
+	}
 }
 
 // Parses the command-line arguments, and validates them.
@@ -94,10 +100,20 @@ func parseArgs() *Options {
 		log.Fatal("redis db out of range")
 	}
 
-	opts.ep = eventdb.NopEventProvider()
-	if opts.RedisAddr != "" {
-		opts.ep = eventdb.RedisEventProvider("tcp", opts.RedisAddr, opts.RedisDb)
+	opts.verbosity = 0
+	if opts.Verbose {
+		opts.verbosity += 1
 	}
 
 	return opts
+}
+
+func dialEventProvider(opts *Options) (ep eventdb.EventProvider, err error) {
+	ep = eventdb.NopEventProvider()
+	if opts.RedisAddr != "" {
+		ep = eventdb.RedisEventProvider("tcp",
+			opts.RedisAddr, opts.RedisDb, opts.verbosity)
+	}
+
+	return ep, ep.Dial()
 }
