@@ -5,12 +5,13 @@ import (
 	"github.com/drone/routes"
 	"github.com/politician/goose/worker"
 	"net/http"
+	"strconv"
 )
 
 func NewWatchHandler(ws worker.WatchService) http.Handler {
 	const (
 		COLLECTION_URL = "/watches"
-		WATCH_URL      = "/watches/id:([a-f0-9]+)"
+		WATCH_URL      = "/watches/:id([a-f0-9]+)"
 	)
 
 	// Setup routes.
@@ -20,7 +21,7 @@ func NewWatchHandler(ws worker.WatchService) http.Handler {
 	mux.Post(COLLECTION_URL, closeConnectionAdvice(createFunc(ws)))
 	mux.Del(COLLECTION_URL, closeConnectionAdvice(deleteAllFunc(ws)))
 	// mux.Get(WATCH_URL, watch)
-	// mux.Del(WATCH_URL, closeConnectionAdvice(deleteOne(ws)))
+	mux.Del(WATCH_URL, closeConnectionAdvice(deleteOneFunc(ws)))
 
 	return mux
 }
@@ -66,6 +67,20 @@ func deleteAllFunc(ws worker.WatchService) http.HandlerFunc {
 
 func deleteOneFunc(ws worker.WatchService) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
-		http.Error(w, "Not implemented", http.StatusMethodNotAllowed)
+		params := req.URL.Query()
+
+		id, err := strconv.Atoi(params.Get(":id"))
+		if err != nil {
+			http.Error(w, err.Error(), GOOSE_ERROR)
+			return
+		}
+
+		_, err = ws.Remove(id)
+		if err != nil {
+			http.Error(w, err.Error(), GOOSE_ERROR)
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
 	}
 }

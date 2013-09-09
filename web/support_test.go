@@ -13,6 +13,12 @@ func (d *fakeHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	http.Error(w, "actually not an error", 200)
 }
 
+func StartHttpServer(addr string, handler http.Handler) (srv *HttpServer, err error) {
+	srv = NewHttpServer(addr, handler)
+	err = srv.Start()
+	return
+}
+
 func CheckConnection(addr string) (err error) {
 	c := NewHttpTestClient(addr)
 	err = c.Dial()
