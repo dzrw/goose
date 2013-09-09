@@ -19,12 +19,7 @@ func NewCreateTask(w *watchdb.Watch) *createTask {
 }
 
 func (t *createTask) Do(repo watchdb.WatchProvider) (err error) {
-	id, ok := repo.Add(t.w)
-	if !ok {
-		err = ErrCannotAddWatch
-		return
-	}
-
+	id, _ := repo.Add(t.w)
 	t.ch <- &createTaskResponse{id, t.w.Tag}
 	return
 }
