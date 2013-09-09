@@ -1,10 +1,11 @@
 package watchdb
 
 type MatchExpr struct {
-	Method string
-	Path   string
+	DataSourceName string
+	Method         string
+	Path           string
 }
 
-func NewMatchExpr(path, method string) *MatchExpr {
-	return &MatchExpr{Path: path, Method: method}
+func NewMatchExpr(dataSourceName, path, method string) *MatchExpr {
+	return &MatchExpr{dataSourceName, method, path}
 }

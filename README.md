@@ -32,7 +32,7 @@ hello, world
 
 ## Redis Integration
 
-If you're running Redis, goose will store any incoming requests as hashes and `LPUSH` the hash keys onto the list specified as the `tag` field in a watch.
+If you're running Redis, goose will store any incoming requests as hashes and `LPUSH` the hash keys onto the list specified as the `tag` field in a watch. If the tag is not specified, goose will generate a new tag and include it in the create watch response.
 
 ### Example
 
@@ -73,4 +73,3 @@ quit
 Connection closed by foreign host.
 $
 ```
-

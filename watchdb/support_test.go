@@ -21,7 +21,3 @@ func (*fakeResponse) Body() []byte {
 func (*fakeResponse) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	panic("not implemented")
 }
-
-func fakeWatch() *Watch {
-	return NewWatch("GET", "/foo", "redis:watch:1234", new(fakeResponse))
-}

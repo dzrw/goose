@@ -60,6 +60,11 @@ func (db *watchdb) Add(w *Watch) (id int, ok bool) {
 		id = db.last_id
 	}
 
+	// autogenerate the tag unless the tag was specified
+	if w.Tag == "" {
+		w.Tag = fmt.Sprintf("goose:events:%d", id)
+	}
+
 	w.id = id
 	db.m[id] = w
 	ok = db.index[key].Add(id)
@@ -76,9 +81,10 @@ func (db *watchdb) Match(expr *MatchExpr) (m MatchData, ok bool) {
 			return m, true // whatever, loop once. todo. fix. etc.
 		}
 
+		// Index contained an empty set.
 		return EmptyMatchData, false
-
 	} else {
+		// Not found in the index.
 		return EmptyMatchData, false
 	}
 }
